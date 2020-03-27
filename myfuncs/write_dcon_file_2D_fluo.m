@@ -1,0 +1,93 @@
+function [] = write_dcon_file_2D_fluo(axis0,axis1,origin,count,channel,a2dchannel,confilename,lab)
+
+% Open file for writing and put comment header with scan type
+fid = fopen(confilename,'w');
+fprintf(fid,'#2D_fluo\n');
+
+% Take two fluorescent images
+for colour = {'blue','green'}
+    line = strcat({'action script\n\tscript '},colour,{'on\nend\n'});
+    fprintf(fid,line{1});
+    fprintf(fid,'action webcam\n\tcamera 0\n\tresolution 1600 1200\n\tgrab\nend\n');
+    line = strcat({'action script\n\tscript '},colour,{'off\nend\n\n'});
+    fprintf(fid,line{1});
+end
+
+% Count action contains all the other actions - scans and pictures
+fprintf(fid,'action count\n\tcount %i\n\n', count);
+
+for loc = 1:size(origin,1)
+    fprintf(fid,['\taction apt_stage\n'...
+        '\t\taxis 0\n']);
+   
+    fprintf(fid,'\t\tscan %g %g %g\n',origin(loc,1)+axis0(loc,1)/1000,...
+        origin(loc,1)+axis0(loc,2)/1000,axis0(loc,3)/1000);
+    fprintf(fid,'\t\trestore\n\n');
+    
+    fprintf(fid,['\t\taction apt_stage\n'...
+        '\t\t\taxis 1\n']);
+    
+    fprintf(fid,'\t\t\tscan %g %g %g\n',origin(loc,2)+axis1(loc,1)/1000,...
+        origin(loc,2)+axis1(loc,2)/1000,axis1(loc,3)/1000);
+    fprintf(fid,['\t\t\trestore\n'...
+        '\t\t\tsave\n\n'...
+        '\t\t\taction scope\n']);
+    
+    fprintf(fid,'\t\t\t\tchannels %s\n',channel);
+    
+    if strcmp(lab,'ASOPS')==1
+        fprintf(fid,['\t\t\t\tip 192.168.74.15\n'...
+            '\t\t\tend\n\n']);
+    elseif strcmp(lab,'PLU')==1
+        fprintf(fid,['\t\t\t\tip 128.243.74.74\n'...
+            '\t\t\tend\n\n']);
+    end
+    
+    fprintf(fid,'\t\t\taction a2d\n');
+    
+    fprintf(fid,'\t\t\t\tchannel %g\n',a2dchannel);
+    
+    fprintf(fid,['\t\t\t\trange 1\n'...
+        '\t\t\t\tsample_rate 10000\n'...
+        '\t\t\t\tn_samples 1000\n'...
+        '\t\t\tend\n\n']);
+    
+    for colour = {'blue','green'}
+        fprintf(fid,['\t\t\taction script \n'...
+            '\t\t\t\tscript %son\n'...
+            '\t\t\tend\n'],colour{:});
+        fprintf(fid,['\t\t\taction webcam\n'...
+            '\t\t\t\tcamera 0\n'...
+            '\t\t\t\tresolution 1600 1200\n'...
+            '\t\t\t\tgrab\n'...
+            '\t\t\tend\n']);
+        fprintf(fid,['\t\t\taction script \n'...
+            '\t\t\t\tscript %soff\n'...
+            '\t\t\tend\n\n'],colour{:});
+    end
+    fprintf(fid,['\t\tend\n'...
+            '\tend\n']);
+end
+
+for colour = {'blue','green'}
+    fprintf(fid,['\taction script \n'...
+            '\t\tscript %son\n'...
+            '\tend\n'],colour{:});
+    fprintf(fid,['\taction webcam\n'...
+            '\t\tcamera 0\n'...
+            '\t\tresolution 1600 1200\n'...
+            '\t\tgrab\n'...
+            '\tend\n']);
+    fprintf(fid,['\taction script \n'...
+            '\t\tscript %soff\n'...
+            '\tend\n\n'],colour{:});
+end
+
+fprintf(fid,'end\n');
+
+
+fclose(fid);
+
+
+
+end
