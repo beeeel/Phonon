@@ -1,5 +1,5 @@
 %% For multi origin scans
-dataset = 1127;
+dataset = 1121;
 dir = '/home/will/Documents/data/Phonon/';
 if isempty(whos('fluo_data'))
     if dataset == 1121
@@ -62,8 +62,8 @@ FSize = 16;
 
 figure(29)
 subplot(3,1,1)
-for scan = 1:n_or
-    plot(times(:,scan),mean(data.(['scan' num2str(scan)]).freq{1}(x_pt,:)));
+for scan = 3
+    errorbar(times(:,scan),mean(data.(['scan' num2str(scan)]).freq{1}(x_pt,:)),std(data.(['scan' num2str(scan)]).freq{1}(x_pt,:)));
     if scan == 1
         hold on
     end
@@ -266,4 +266,15 @@ for ori = 1:n_or
     end
     
 end
-    
+
+%% Characterise range of normal frequencies
+FData = zeros(6,size(data.scan1.freq{1},2));
+FErrs = zeros(6,size(data.scan1.freq{1},2));
+
+for scan = 1:6
+    FData(scan,:) = mean(data.(['scan' num2str(scan)]).freq{1}(x_pt,:));
+    FErrs(scan,:) = std(data.(['scan' num2str(scan)]).freq{1}(x_pt,:));
+end
+
+figure(32)
+errorbar(mean(FData,1),mean(FErrs,1))
