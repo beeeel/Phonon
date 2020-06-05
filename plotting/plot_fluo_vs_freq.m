@@ -1,6 +1,7 @@
 %% For multi origin scans
 dataset = 1121;
 dir = '/home/will/Documents/data/Phonon/';
+
 if isempty(whos('fluo_data'))
     if dataset == 1121
         load([dir 'nov21st/live_3T31_webcampics.mat'])
@@ -62,7 +63,7 @@ FSize = 16;
 
 figure(29)
 subplot(3,1,1)
-for scan = 3
+for scan = 1
     errorbar(times(:,scan),mean(data.(['scan' num2str(scan)]).freq{1}(x_pt,:)),std(data.(['scan' num2str(scan)]).freq{1}(x_pt,:)));
     if scan == 1
         hold on
@@ -160,7 +161,7 @@ title('Brillouin Frequency and fluorescent intensities for two cells','FontSize'
 legend([strcat(repmat({'Freq '},1,N_lines),string(1:N_lines)), ...
     strcat(repmat({'Live fluo '},1,N_lines),string(1:N_lines)),...
     strcat(repmat({'Dead fluo '},1,N_lines),string(1:N_lines))],'FontSize',FSize)
-saveas(fh, [Path FileName])
+%saveas(fh, [Path FileName])
 %% Multi-cell fluorescent dead/alive
 dataset = 1127;
 if isempty(whos('fluo_data'))
