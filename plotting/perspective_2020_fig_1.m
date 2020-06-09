@@ -1,6 +1,6 @@
 %% Figure 1 histogram data from tubulin disrupted cells
 %   Bounds and start points for fitting are in the local function
-%   "N_GetGitOpts". 
+%   "N_GetFitOpts". 
 %   Options for the histogram (number of bins, for example) are stored in
 %   local function "N_PlotAndFitHists"
 
@@ -17,23 +17,27 @@ N_ShowROIs(ProcessedData, Masks, titles);
 figure(81)
 [FreqVecs, Masks] = N_DrawNewROIs(ProcessedData, titles);
 %% Do the fit and display it
+
+% Set whether to fit to 2 gaussians ('2GMM'), 3 gaussians ('3GMM'), or
+% different models for different sets ('mix'). 
+% You can change the bounds and start points within the function
 [start, lb, ub, opt] = N_GetFitOpts('mix');
 
-f_no = 5;
-fits = cell(size(dirs));
-confs = cell(size(dirs));
-
-for set = 1:size(dirs,2)
-    figure(f_no + set)
+fits = cell(size(titles));
+confs = cell(size(titles));
+clc
+for set = 1:size(titles,2)
+    figure(set)
     clf
     ax = gca;
+    fprintf('\n%s\n',titles{set})
     [fits{set}, confs{set}] = N_PlotAndFitHists(ax, FreqVecs{set}, start{set}, lb{set}, ub{set}, opt, titles{set}, []);
     
 end
 
 %% Local functions definitions
 function [ProcessedData,Masks,FreqVecs] = N_LoadData(FernandoDir)
-% Load the data I saved for you
+%% Load the data I saved for you
 
 
 [~, HName] = system('hostname');
@@ -51,7 +55,7 @@ load([Dir 'perspective2020_fig_1_data.mat'],'ProcessedData','Masks','FreqVecs')
 end
 
 function [start, lb, ub, opt] = N_GetFitOpts(Model)
-% Fitting parameters - each row corresponds to 1 set
+%% Fitting parameters - each row corresponds to 1 set
 
 switch Model
     case '2GMM'
@@ -76,46 +80,49 @@ switch Model
         opt = statset('MaxIter',3000, 'MaxFunEvals', 10000);
     case '3GMM'
         % For 3GMM
-        %        p      q       mu1     mu2    mu3  sig1   sig2     sig3
-        start ={[0.75,  1,      5.125,  5.4,   5.8, 0.03,  0.2,     0.2];
-            [0.5,   0.5,    5.15,   5.4,   6,   0.05,  0.2,     0.2];
-            [0.75,  1,      5.21,   5.52,  5.8, 0.03,  0.1,     0.2];
-            [0.5,   1,      5.2,    5.3,   5.8, 0.03,  0.05,    0.2];
-            [0.5,   0.75,    5.15,   5.4,   5.8, 0.05,  0.2,     0.2]};
-        lb =   {[0.75,  1,      5.1,    5.2,   5.5, 0,     0,       0];  % Control
-            [0,     0.1,    5.1,    5.2,   5.95,0,     0,       0];  % 1ng
-            [0,     1,      5.2,    5.2,   5.5, 0,     0,       0];  % 0.1ng
-            [0,     1,      5.2,    5.28   5.5, 0,     0,       0];  % 0.01ng
-            [0,     0.1,    5.1,    5.2,   5.5, 0,     0,       0]}; % 0.001ng
-        ub =   {[1,     1,      5.15,   5.5,   5.9, 0.05,  0.5,     0.5];% Control
-            [1,     1,      5.2,    5.5,   6.1, 0.05,  0.5,     0.5];% 1ng
-            [1,     1,      5.23,   5.6,   5.9, 0.05,  0.5,     0.5];% 0.1ng
-            [1,     1,      5.22,   5.35,  5.9, 0.05,  0.1,     0.5];% 0.01ng
-            [1,     1,      5.2,    5.5,   5.9, 0.05,  0.5,     0.5]};%0.001ng
+        %        p      q       mu1     mu2    mu3   sig1   sig2     sig3
+        start ={[0.75,  0.5,    5.125,  5.2,   5.4,  0.03,  0.2,     0.2];
+                [0.6443 0.5607  5.1944  5.540  5.9   0.020  0.1455   0.140];
+                [0.5070 0.95    5.1791  5.59   6     0.023  0.160    0.1402];
+                ...
+                [0.25   1,      5.19    5.3,   5.8,  0.03,  0.05,    0.2];
+                [0.4200 0.7800  5.1450  5.230  5.56  0.0200 0.0700   0.1600]};
+        lb =   {[0,     0,      5.1,    5.15,  5.3,  0,     0,       0];  % Control
+                [0.1    0.3     5.1     5.25   5.7   0.02   0.01     0.1];
+                [0      0.94    5.1     5.3    5.7   0.01   0.1      0.1];
+                ...
+                [0,     0,      5.1,    5.1    5.1,  0,     0,       0];  % 0.01ng
+                [0      0       5.1     5.2    5.4   0.01   0.01     0.07]};
+        ub =   {[1,     1,      5.15,   5.5,   6.2,  0.05,  0.5,     0.5];% Control
+                [1      1       5.25    5.7    6     0.15   0.4      0.4];
+                [1      1       5.25    5.75   6.2   0.05   0.4      0.45];
+                ...
+                [1,     1,      5.3     5.5    5.9,  0.05,  0.1,     0.5];% 0.01ng
+                [1      1       5.17    5.4    6     0.03   0.1      0.6]};
         opt = statset('MaxIter',100000, 'MaxFunEvals', 100000);
     case 'mix'
         % For mix of both
-        start ={[0.5745 5.1328  5.3585  0.0145  0.1603];
-                [0.6443 0.5607  5.1944  5.5400  6.1376  0.0209  0.1455  0.140];
-                [0.5070 0.200   5.1791  5.2594  5.5350  0.0233  0.0560  0.1402];
+        start ={[0.5745 5.1328  5.385  0.0145  0.103];
+                [0.6443 0.5607  5.1944  5.540  5.9   0.020  0.1455   0.140];
+                [0.5070 0.95    5.1791  5.59   6     0.023  0.160    0.1402];
                 [0.3014 5.1913  5.2602  0.0229  0.0487];
                 [0.4200 0.7800  5.1450  5.2300  5.5600  0.0200  0.0700  0.1600]};
-        lb =   {[0.2    5.1     5.2     0.01    0.15];
-                [0.1    0.3     5.1     5.3     5.7    0.01    0.1     0.1];
-                [0.4    0       5.1     5.25    5.53    0.01    0.05    0.1];
+        lb =   {[0.2    5.1     5.36    0.01    0.01];
+                [0.1    0.3     5.1     5.25   5.7   0.02   0.01     0.1];
+                [0      0.94    5.1     5.35   5.9   0.01    0.1    0.1];
                 [0      5.18    5.23    0.01    0.02];
-                [0.2    0.5     5.1     5.2     5.4     0.01    0.01    0.07]};
-        ub =   {[0.7    5.3     5.7     0.05    0.3];
-                [0.9    0.7     5.2     5.7     6.14    0.05    0.4     0.16];
-                [0.54   0.3     5.2     5.4     5.6     0.05    0.4     0.145];
+                [0.1    0.1     5.1     5.2     5.4     0.01    0.01    0.07]};
+        ub =   {[0.7    5.3     5.7     0.05    0.11];
+                [1      1       5.25    5.7    6     0.15   0.4      0.4];
+                [1      1       5.25    5.75   6.2   0.05    0.4     0.45];
                 [1      5.23    5.3     0.04    0.1];
-                [0.7    1       5.17    5.25    5.7     0.03    0.1     0.6]};
+                [0.7    1       5.17    5.4     6       0.03    0.1     0.6]};
         opt = statset('MaxIter',100000, 'MaxFunEvals', 500000);
 end
 end
 
 function N_ShowROIs(ProcessedData, Masks, titles)
-% Draw each cell's frequency data with ROI overlaid on a new figure
+%% Draw each cell's frequency data with ROI overlaid on a new figure
 for set = 1:size(titles,2)
     for scan = 1:size(ProcessedData.Freq{set},1)
         figure
@@ -126,6 +133,7 @@ end
 end
 
 function [FreqVecs, Masks] = N_DrawNewROIs(ProcessedData, titles)
+%% Define your own ROIs using MATLAB's ROI creation tool
 % Preallocate cells for frequency data and mask data
 FreqVecs = cell(size(titles)); 
 Masks = cell(size(titles));
@@ -145,7 +153,7 @@ end
 end
 
 function [fit, conf] = N_PlotAndFitHists(ax, allFreq, fitStartVal, fitLb, fitUb, fitOpts, figTitle, fit)
-
+%% This does what it says: Fits data to histograms and plots result
 % Parameters
 Nbins = 60; % Number of bins for data
 Npoints = 200; % Number of points to calculate pdf at
