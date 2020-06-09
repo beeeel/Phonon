@@ -1,4 +1,4 @@
-function [allFreq] = HistBatchPreProcess(dir, fileBase, exclude)
+function [allFreq, allIms] = HistBatchPreProcess(dir, fileBase, exclude)
 %% [allFreq, fit, conf] = show_hist(ax, dir, fileBase, exclude)
 % Run the standard processing code to load all files in dir that start with
 %    base. Run numbers included in the string exclude will be excluded from
@@ -35,10 +35,14 @@ for fileNo = 1:nFiles
     datas{fileNo} = batch_processing_v_1_6(loadList{fileNo}, '');
 end
 
-% Preallocate cell array and put all frequency data into it
+% Preallocate cell arrays
 allFreq = cell(size(datas,1),1);
+allIms = cell(size(datas,1),2);
+% Populate with frequency and image data
 for idx = 1:nFiles
     allFreq(idx) = datas{idx}.freq;
+    allIms{idx,1} = datas{idx}.before;
+    allIms{idx,2} = datas{idx}.after;
 end
 
 end
