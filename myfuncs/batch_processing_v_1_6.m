@@ -26,7 +26,13 @@ function data = batch_processing_v_1_6( filebase, run_no)
 %%
 %close all
 %clear all
-addpath /home/share/matlab/PLU/PLU_Functions  %current location of most recent functions, /home/rjs/Dropbox/code/PLU_Functions
+[~, HName] = system('hostname');
+HName = strsplit(HName);
+if strcmp(HName{1},'will-linux')
+    addpath /home/will/Documents/MATLAB/PLU_functions
+else
+    addpath /home/share/matlab/PLU/PLU_Functions  %current location of most recent functions, /home/rjs/Dropbox/code/PLU_Functions
+end
 %% confile details.
 %
 confile = strcat(filebase,run_no);      % con file name no extension
@@ -42,7 +48,7 @@ exp_params.default_loc = 300;           % where the co peak should be found
 exp_params.start_offset = 40;           % off set from co peak location for data selection
 exp_params.co_peak_thresh = 0.125e-4;   % co peak level in volt for ac or mod depth for mod data
 exp_params.trace_length=1000;            % how many points to use in trace for basic processing
-exp_params.fit_order = 5;               % thermal removal fit order
+exp_params.fit_order = 8;               % thermal removal fit order
 exp_params.f_min = 4.8;                  % min freq of interest, used in freq search
 exp_params.f_max = 6.5;                  % max freq of interest, used in freq search
 exp_params.co_peak_range = (-70:120)+exp_params.default_loc;   %search range for co_peak
@@ -51,7 +57,7 @@ exp_params.LPfilter = 20;               % in GHz
 exp_params.index_object = 1.57;         % refractive index at wavelength for object, used to get V from brillouin data
 exp_params.index_media = 1.33;          % refractive index at wavelength for surrounding media, used to get V from brillouin data
 exp_params.index_sel_freq = 7;          % freq threshold to decide which index to assign, used by brillouin processing
-exp_params.zp = 2^14;
+exp_params.zp = 2^16;
 exp_params.lambda = 780e-9;             % wavelength, used in vel conversion
 exp_params.laser_freq = 100e6;           % laser rep rate, needed to convert electrical time base to acoustic
 exp_params.delay_freq = 10e3;           % delay rep rate, needed to convert electrical time base to acoustic
@@ -178,5 +184,14 @@ end
 %% optical pic plot (ASOPS/Andor ONLY)    % added by Fernando 27/11/2017
 if plot_params.plot_andor==1; func_andor_plot(data,axis_info,filename,exp_params,plot_params);end
 
+filename1=strcat(filename.base,'_before.dat');
+i=loadi(filename1,[658,496]);
+
+data.before = i;
+
+filename1=strcat(filename.base,'_after.dat');
+i=loadi(filename1,[658,496]);
+
+data.after = i;
 end
 
