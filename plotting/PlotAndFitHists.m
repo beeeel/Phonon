@@ -1,6 +1,5 @@
 function [fit, conf] = PlotAndFitHists(ax, allFreq, fitStartVal, fitLb, fitUb, fitOpts, figTitle, fit)
 
-% Parameters
 Nbins = 60; % Number of bins for data
 Npoints = 200; % Number of points to calculate pdf at
 LineW = 2; % Width of lines on plots
@@ -8,7 +7,9 @@ interpreter = 'Tex'; % For titles - either Tex or None
 
 pdf = GetModel(fitStartVal);
 if isempty(fit)
-    [fit, conf] = FitModel(allFreq, pdf, fitStartVal, fitLb, fitUb, fitOpts);
+    % Fit the model using maximum liklehood estimation
+    [fit, conf] = mle(allFreq, 'pdf', pdf, 'start', fitStartVal, ...
+        'lower', fitLb, 'upper', fitUb, 'options', fitOpts);
 end
 DrawHists(ax, allFreq, Npoints, Nbins, fitStartVal, pdf, fit, LineW, interpreter, figTitle);
 
@@ -35,17 +36,11 @@ DrawHists(ax, allFreq, Npoints, Nbins, fitStartVal, pdf, fit, LineW, interpreter
         end
     end
 
-    function [fit, conf] = FitModel(allFreq, pdf, start, lb, ub, options)
-        
-        % Fit the model using maximum liklehood estimation
-        [fit, conf] = mle(allFreq, 'pdf', pdf, 'start', start, ...
-            'lower', lb, 'upper', ub, 'options', options);
-    end
-
     function DrawHists(ax, allFreq, Npoints, Nbins, start, pdf, fit, LineW, interpreter, figTitle)
         
         % Calculate data to plot
-        xgrid = linspace(0.95 * min(allFreq), 1.05 * max(allFreq), Npoints);
+%         xgrid = linspace(0.95 * min(allFreq), 1.05 * max(allFreq), Npoints);
+        xgrid = linspace(4.8, 6.6, Npoints);
         cellgrid2 = []; % Initialise an empty matrix to prevent undefined variable being returned
         switch size(start,2)
             case 5
@@ -84,7 +79,7 @@ DrawHists(ax, allFreq, Npoints, Nbins, fitStartVal, pdf, fit, LineW, interpreter
         end
         hold off
         xlabel(ax, 'Brillouin frequency (GHz)')
-        ylabel(ax, 'Normalised')
+        ylabel(ax, 'A.U.')
         title(ax, figTitle,'Interpreter',interpreter)
     end
 
