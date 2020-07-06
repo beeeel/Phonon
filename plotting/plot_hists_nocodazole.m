@@ -3,26 +3,26 @@
 % Each directory to look in, the root for that directory and title for that
 % set
 dirs  = {'/home/scan/2019/may/ASOPS/7th',...Control
-    ...'/home/scan/2019/may/ASOPS/15th',...    Cytochalasin D
+    '/home/scan/2019/may/ASOPS/15th',...    Cytochalasin D
     '/home/scan/2019/may/ASOPS/28th',...    Nocodazole 1ng/ml
     '/home/fperez/0611_Will/', ...          Nocodazole 0.1ng/ml
     '/home/fperez/0612_Will', ...           Nocodazole 0.01ng/ml
     '/home/fperez/0614_Will'}; %            Nocodazole 0.001ng/ml
 roots = {'HeLa_control_day2',...
-    ...'hela_cytd',...
+    'hela_cytd',...
     'hela_noco_day2', ...
     'hela_noco01', ...
     'hela_noco001', ...
     'hela_noco0001'};
 titles = {'Control', ...
-    ...'Cytochalasin D 1\muM', ...
+    'Cytochalasin D 1\muM', ...
     'Nocodazole 1ng/ml', ...
     'Nocodazole 0.1ng/ml',...
     'Nocodazole 0.01ng/ml', ...
     'Nocodazole 0.001ng/ml'};
-savedir = '/home/ppxwh2/Documents/onbi-rotation-report/';
+savedir = '/home/will/Documents/Reports/phd_first_year/pics/';
 savenames = {'ctrl',...
-    ...'cytd1uM',...
+    'cytd1uM',...
     'noco1',...
     'noco01',...
     'noco001',...
@@ -60,35 +60,34 @@ savenames = {'ctrl',...
 % opt = statset('MaxIter',100000, 'MaxFunEvals', 100000);
 
 % For mix of both
-start ={[0.5745 5.1328  5.3585  0.0145  0.1603];
+start ={[0.5745 5.1328  5.385  0.0145  0.103];
         ...[0.5    5.1     5.4     0.03    0.1];
-        [0.6443 0.5607  5.1944  5.5400  6.1376  0.0209  0.1455  0.140];
-        [0.5070 0.200   5.1791  5.2594  5.5350  0.0233  0.0560  0.1402];
+        [0.6443 0.5607  5.1944  5.540  5.9   0.020  0.1455   0.140];
+        [0.5070 0.95    5.1791  5.59   6     0.023  0.160    0.1402];
         [0.3014 5.1913  5.2602  0.0229  0.0487];
         [0.4200 0.7800  5.1450  5.2300  5.5600  0.0200  0.0700  0.1600]};
-lb =   {[0.4    5.1     5.2     0.01    0.15];
+lb =   {[0.2    5.1     5.36    0.01    0.01];        
         ...[0      5.1     5.2     0.01    0.1];
-        [0.1    0.3     5.1     5.539   6.13    0.01    0.1     0.1];
-        [0.4    0       5.1     5.25    5.53    0.01    0.05    0.1];
+        [0.1    0.3     5.1     5.25   5.7   0.02   0.01     0.1];
+        [0      0.94    5.1     5.35   5.9   0.01    0.1    0.1];
         [0      5.18    5.23    0.01    0.02];
-        [0.2    0.5     5.1     5.2     5.4     0.01    0.01    0.07]};
-ub =   {[0.7    5.3     5.5     0.05    0.3];
+        [0.1    0.1     5.1     5.2     5.4     0.01    0.01    0.07]};
+ub =   {[0.7    5.3     5.7     0.05    0.11];
         ...[1      5.2     6       0.1     0.5];
-        [0.9    0.7     5.2     5.6     6.14    0.05    0.4     0.16];
-        [0.54   0.3     5.2     5.4     5.6     0.05    0.4     0.145];
+        [1      1       5.25    5.7    6     0.15   0.4      0.4];
+        [1      1       5.25    5.75   6.2   0.05    0.4     0.45];
         [1      5.23    5.3     0.04    0.1];
-        [0.7    1       5.17    5.25    5.7     0.03    0.1     0.6]};
+        [0.7    1       5.17    5.4     6       0.03    0.1     0.6]};
 opt = statset('MaxIter',100000, 'MaxFunEvals', 500000);
 % For improving the fit, it's useful to change to bounds/start points and
 % then run the fitting and plotting again. To make this easier, put the
 % start values into the fit values
-for set = 1:size(dirs,2)
-    fits{set} = start{set};
-end
-%% Load and process, fit and plot
+% for set = 1:size(dirs,2)
+%     fits{set} = start{set};
+% end
+%% Load fit and plot
 % Preallocate cells for frequency data, fits, and confidence intervals 
 freqs = cell(size(dirs, 2),1);
-fits  = freqs;
 confs = freqs;
 % Set current figure, create and get an axis, then use show_hist to load
 % data, fit and plot
@@ -101,7 +100,7 @@ for set = 1:size(dirs,2)
         roots{set}, start{set}, lb{set}, ub{set}, opt,'4');
     disp(num2str(fits{set}))
 end
-%% Just fit and plot
+%% Save, fit and plot
 save = 1;
 for set = 1:size(dirs,2)
     figure(f_no + set)
@@ -146,5 +145,5 @@ for set = 1%:size(dirs,2)
     axis image off
     colorbar
     title('');%title(titles{set})
-    saveas(gcf,strcat(saveDir, fig_names{set},'_',num2str(im),'_sc_frq.png'))
+%     saveas(gcf,strcat(saveDir, fig_names{set},'_',num2str(im),'_sc_frq.png'))
 end
