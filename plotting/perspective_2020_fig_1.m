@@ -3,19 +3,20 @@
 %   "N_GetFitOpts". 
 %   Options for the histogram (number of bins, for example) are stored in
 %   local function "N_PlotAndFitHists"
-
+clear
+close all
 % Load data
-[ProcessedData,Masks,FreqVecs] = N_LoadData(''); %#ok<ASGLU>
+[ProcessedData,Masks,FreqVecs] = N_LoadData('');
 titles = {'Control', ...
     'Nocodazole 1ng/ml', ...
     'Nocodazole 0.1ng/ml',...
     'Nocodazole 0.01ng/ml', ...
     'Nocodazole 0.001ng/ml'};
 %% View the ROIs I've defined
-N_ShowROIs(ProcessedData, Masks, titles);
+%N_ShowROIs(ProcessedData, Masks, titles);
 %% You may wish to change to ROIs I've defined
-figure(81)
-[FreqVecs, Masks] = N_DrawNewROIs(ProcessedData, titles);
+% figure(81)
+% [FreqVecs, Masks] = N_DrawNewROIs(ProcessedData, titles);
 %% Do the fit and display it
 
 % Set whether to fit to 2 gaussians ('2GMM'), 3 gaussians ('3GMM'), or
