@@ -10,7 +10,7 @@ RootDir = '~/Data/phd/Phonon/';
 
 % Chose a dataset to load
 % load('~/Data/phd/Phonon/processed_data/perspective2020_fig_1_data')
-load('~/Data/phd/Phonon/processed_data/first_yr_report_histogram_data','ProcessedData', 'Masks','FreqVecs')
+load('~/Data/phd/Phonon/processed_data/first_yr_report_histogram_data','ProcessedData', 'Masks','FreqVecs','NocoLFVec','NocoHFVec')
 % load('~/Data/phd/Phonon/processed_data/first_yr_report_histogram_bg_data','ProcessedData', 'Masks','FreqVecs')
 
 %% Load and process, fit and plot
@@ -27,26 +27,26 @@ end
 %% Draw ROIs
 figure(81)
 FreqVecs = cell(size(dirs)); % vector for frequency info from inside ROI
-Masks = cell(size(dirs));
-for set = 1:size(dirs,2)
+% Masks = cell(size(dirs));
+for set = 6%1:size(dirs,2)
     disp(titles{set})
-    Masks{set} = cell(size(ProcessedData.Freq{set}));
-    for scan = 1:size(ProcessedData.Freq{set},1)
-        im = imagesc(ProcessedData.Freq{set}{scan},[5.1 5.7]);
-        ThisROI = drawpolygon(im.Parent);
-        Masks{set}{scan} = ThisROI.createMask;
-        FreqVecs{set} = [FreqVecs{set}; ProcessedData.Freq{set}{scan}(ThisROI.createMask)];
+%     Masks{set} = cell(size(ProcessedData.Freq{set}));
+    for scan = [1,3,5,7,9:12]%1:size(ProcessedData.Freq{set},1)
+%         im = imagesc(ProcessedData.Freq{set}{scan},[5.1 5.7]);
+%         ThisROI = drawpolygon(im.Parent);
+%         Masks{set}{scan} = ThisROI.createMask;
+        FreqVecs{set} = [FreqVecs{set}; ProcessedData.Freq{set}{scan}(Masks{set}{scan})];
     end
 end
 %save('~/Data/phd/Phonon/processed_data/perspective2020_fig_1_data','ProcessedData', 'Masks','FreqVecs')
 %%
-% save('~/Data/phd/Phonon/processed_data/first_yr_report_histogram_data','ProcessedData', 'Masks','FreqVecs')
+% save('~/Data/phd/Phonon/processed_data/first_yr_report_histogram_data','ProcessedData', 'Masks','FreqVecs','NocoLFVec','NocoHFVec')
 % save('~/Data/phd/Phonon/processed_data/first_yr_report_histogram_bg_data','ProcessedData', 'Masks','FreqVecs')
 %% fit 
 % For a 2 gaussian mix model (two peaks), use '2GMM'. For 3, use '3GMM'.
 % To have some fits with 3 peaks and some with 2, use 'mix'. Start values
 % can by changed at the bottom of this file.
-SaveFig = 1;
+SaveFig = 0;
 [start, lb, ub, opt] = N_GetFitOpts('mix');
 FSize = 16;
 
@@ -72,14 +72,77 @@ for set = 1:size(dirs,2)
         pause(0.1)
     end
 end
+%% Print a table formatted in latex for a report
+ColNames = {'Control','Cytochalasin D \unit[1]{\textmu M}',...
+    'Nocodazole \unit[1]{\nicefrac{ng}{ml}}','Nocodazole \unit[0.1]{\nicefrac{ng}{ml}}',...
+    'Nocodazole \unit[0.01]{\nicefrac{ng}{ml}}','Nocodazole \unit[0.001]{\nicefrac{ng}{ml}} (all cells)'};
+for set = 1:size(dirs,2)
+    fprintf('%s',ColNames{set})
+    if length(fits{set}) == 8
+        fprintf('&%.3f $\\pm$ %.3f & %.3f $\\pm$ %.3f & %.3f $\\pm$ %.3f ',fits{set}(3),fits{set}(6),fits{set}(4),fits{set}(7),fits{set}(5),fits{set}(8))
+    else
+        fprintf('&%.3f $\\pm$ %.3f & %.3f $\\pm$ %.3f & ',fits{set}(2),fits{set}(4),fits{set}(3),fits{set}(5))
+    end
+    fprintf('\\\\\n\\hline\n')
+end
+%% Noco 0.001 population split separate fit
+start ={[0.25   5.14    5.3     0.025   0.05]
+        [0.1    5.1     5.6     0.025   0.2]};
+lb  =  {[0      5.139   5.2     0.024   1e-3]
+        [0      5.05    5.2     1e-3    1e-3]};
+ub  =  {[1      5.141   6       0.026   0.2   ]
+        [1      5.15    6.2     1       1]};
+    
+FitsNoco = cell(2,1);
+ConfNoco = cell(2,1);
+
+figure(50)
+clf
+ax = gca;
+disp('Fit for low freq')
+[FitsNoco{1}, ConfNoco{1}] = PlotAndFitHists(ax, NocoLFVec, start{1}, lb{1}, ub{1}, opt, 'Low contrast', []);
+saveas(gcf,[savedir 'histfit_noco0001_LC.png'])
+
+figure(51)
+clf
+ax = gca;
+disp('Fit for high freq')
+[FitsNoco{2}, ConfNoco{2}] = PlotAndFitHists(ax, NocoHFVec, start{2}, lb{2}, ub{2}, opt, 'High contrast', []);
+% saveas(gcf,[savedir 'histfit_noco0001_HC.png'])
 %%
 close all
 f_no = 0;
-set = 4;
+set = 5;
 for idx = 1:size(ProcessedData.Freq{set},1)
     figure(f_no+idx)
     clf
+    subplot(1,3,1)
     imagesc(ProcessedData.Freq{set}{idx}, [5.1 5.9])
+    axis image off
+    colormap(gca,'default')
+    title(['Cell number ' num2str(idx)])
+    subplot(1,3,2)
+    imagesc(ProcessedData.Andor{set}{idx,1})
+    colormap(gca,'gray')
+    axis image
+    title('Before')
+    subplot(1,3,3)
+    imagesc(ProcessedData.Andor{set}{idx,2})
+    colormap(gca,'gray')
+    axis image
+    title('After')
+end
+%%
+close all
+f_no = 0;
+ImNo = [1 2 4 1 5];
+for set = 1:size(ProcessedData.Freq,1)-1
+    figure(f_no+set)
+    clf
+    imagesc(ProcessedData.Freq{set}{ImNo(set)}, [5.1 5.9])
+    axis image off
+%    title(['Treatment ' titles{set}])
+    saveas(gcf,['~/Documents/Reports/phd_first_year/pics/freqmap_' savenames{set} '.png'])
 end
     
 % %% 
