@@ -8,7 +8,7 @@ if isempty(whos('fluo_data'))
         run([dir 'nov21st/test_multiscan.m'])
         centres = [744, 542; 756, 437; 752,475; 771 430; 767 422; 763 460];
         bgs = [580 331; 287 278; 363 475; 987 597; 662 164; 741 263];
-        n_or = length(fieldnames(data))-2;
+        n_or = length(fieldnames(data));
     elseif dataset == 1120
         load([dir 'nov20th/live_3T3_noAu1_webcampics.mat'])
         centres = [786, 429];
@@ -93,6 +93,42 @@ title('(c)','FontSize',FSize)
 xlabel('Time (hours)','FontSize',FSize-2), ylabel('(AU)','FontSize',FSize-2)
 %legend(fieldnames(data))
 
+%% Freq one one, live/dead on second
+Tits = {'Mean Brillouin frequency of cell','Fluorescent Live/Dead assay'};
+x_pt = 12:18;
+FSize = 16;
+PlotOpts = {'LineWidth',1.5};
+ors = 3:4;
+Cols = {'r','b'};
+Xrange = [0 4];
+
+figure(27)
+clf
+subplot(2,1,1)
+hold on
+for ori = ors
+    plot(times(:,ori),mean(data.(['scan' num2str(ori)]).freq{1}(x_pt,:)),Cols{ori-2},PlotOpts{:})
+%     plot(times(:,ori),mean(data.(['scan' num2str(ori)]).freq{1}([1:2 end-1:end],:),1),[Cols{ori-2} '--'],PlotOpts{:})
+end
+title(Tits{1},'FontSize',FSize)
+xlabel('Time (hours)','FontSize',FSize-2)
+ylabel('F_b (GHz)','FontSize',FSize-2)
+xlim(Xrange)
+
+subplot(2,1,2)
+hold on
+for ori = ors
+    Lydata = normalize(l_sig(:,ori)./l_bg(:,ori),'range',[1 10]); % Live y-data
+    Dydata = normalize(d_sig(:,ori)./d_bg(:,ori),'range',[1 10]); % Dead y-data
+
+    plot(times(:,ori),Lydata,[Cols{ori-2} '-'],PlotOpts{:});
+    plot(times(:,ori),Dydata,[Cols{ori-2} '--'],PlotOpts{:});
+end
+title(Tits{2},'FontSize',FSize)
+%legend('Live ','Dead 1','D 1','D 2')
+xlabel('Time (hours)','FontSize',FSize-2)
+ylabel('Fluorescent signal (AU)','FontSize',FSize-2)
+xlim(Xrange)
 %% Same as previous but normalize death time
 x_pt = 12:18;
 scans = 1:n_or;
@@ -265,13 +301,14 @@ Cols = {'k','b','r','m'};
 FSize = 16;
 figure(31)
 clf
-for ori = 1:n_or
+for ori = 3:4%1:n_or
     for pt=1:n_pt
         Lydata = normalize(l_sig(:,ori,pt)./l_bg(:,ori),'range',[1 10]); % Live y-data
         Dydata = normalize(d_sig(:,ori,pt)./d_bg(:,ori),'range',[1 10]); % Dead y-data
         
         if n_or > 1
-            subplot(2,3,ori)
+%             subplot(2,3,ori)
+            subplot(1,2,ori-2)
         end
         a = semilogy(times(:,ori),Lydata,[Cols{pt} '-']);
         hold on
@@ -283,9 +320,10 @@ for ori = 1:n_or
     set(gca,'FontSize',FSize-2)
     xlabel('Time (hours)','FontSize',FSize)
     ylabel('Fluorescent signal (AU)','FontSize',FSize)
+    title(['Example cells ' num2str(ori-2)])
 %     title(sprintf('Cell cluster %i',ori),'FontSize',FSize)
 end
- saveas(gcf,'~/Documents/Reports/phd_first_year/pics/fluo_multicell.png')
+%  saveas(gcf,'~/Documents/Reports/phd_first_year/pics/fluo_multicell.png')
 %% Characterise range of normal frequencies
 t_pt = 30:60;
 x_pt = 12:18;
