@@ -70,7 +70,7 @@ if nargout == 3
     varargout = {AEL, MPEEye, MPESkin};
     if p.Results.SkinLimits
         PLim = MPESkin;
-    elseif p.Results.PlotIrr
+    elseif p.Results.PlotIrradiance
         PLim = MPEEye;
     else
         PLim = AEL;
@@ -133,7 +133,7 @@ end
         
         xlabel(['Distance (m) [' str ']'])
         
-        if p.Results.PlotIrr
+        if p.Results.PlotIrradiance
             ylabel(['Radiant exposure (W m^{-2}) [MPE = ' num2str(PLim,3) 'W m^{-2}]'])
             strLeg = 'Radiance';
             strTitle = '$\frac{\Omega_{pupil}}{\Omega_{illum}} \times P_{laser} \times (A_{pupil})^{-1}';
@@ -173,15 +173,17 @@ end
                 case 'cylindrical'
                     IncidentPower = (p.Results.Power * Transmission * (pi * (3.5e-3).^2))./(2.*abs(Dist-p.Results.FocalLength).*tan(FoVAngle).*(2.*Dist.*tan(p.Results.Divergence) + p.Results.BeamWidth));
             end
-            % Convert to irrandiance if PlotIrr. Otherwise divide by 1.
-            IncidentPower = IncidentPower ./ (~p.Results.PlotIrr + p.Results.PlotIrr * pi * (3.5e-3).^2);
+            % Convert to irrandiance if PlotIrradiance. Otherwise divide by 1.
+            IncidentPower = IncidentPower ./ (~p.Results.PlotIrradiance + p.Results.PlotIrradiance * pi * (3.5e-3).^2);
         end
     end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     function AEL = UseAELTable()
-        %% AEL - First select the class, then extended or small source
+        %% AEL - define a table then look up values from it
+        
+        % First select the class, then small or extended source
         switch Class
             case '1'
                 if C6 == 1
@@ -261,17 +263,24 @@ end
                 error('Will''s a lazy bugger and hasn''t programed this case yet!')
         end
         
+        % Wavelength limit check
         if Wavelength < YVals(1)
             error('Wavelength too short for defined table')
         elseif Wavelength > YVals(end)
             error('Wavelength too long for defined table')
-        elseif Time < XVals(1)
+        end
+        
+        % Time limit check
+        if Time < XVals(1)
             Time = XVals(1);
             fprintf('Time too short, setting to %g\n',Time)
         elseif Time > XVals(end)
             Time = XVals(end);
             fprintf('Time too long, setting to %g\n',Time)
-        elseif ~p.Results.CalculatePulsed
+        end
+        
+        % Continuous or pulsed
+        if ~p.Results.CalculatePulsed
             fprintf(StrTable,'AEL', BSTable, Time, Wavelength)
             [AEL, Units] = AELLookup(Time);
             fprintf('%s\n%%\t\tAEL = %.2e %s\t\t%%\n%s\n\n',repmat('%',1,49),AEL, Units,repmat('%',1,49))
@@ -279,12 +288,15 @@ end
                 disp('AEL table incomplete')
                 error('Will''s a lazy bugger and hasn''t programed this case yet!')
             end
-        elseif p.Results.CalculatePulsed
-            AELT = AELLookup(TimeBase);
+        else
+            % Rule 4.3) Compare the AEL for a single pulse, and for the
+            % average over the time base
             AELsingle = AELLookup(p.Results.PulseDuration);
+            AELT = AELLookup(TimeBase);
+            
             % Condition 4.3 f) 3) is not assessed against photochemical
             % limits or for class 3B
-            Cond43f3 = ~strcmp(Class,"3B") && (Wavelength >= 400 && Wavelength < 600);
+            Cond43f3 = ~strcmp(Class,"3B") && (Wavelength >= 400 && Wavelength < 1e6);
             if Cond43f3; AELspTrain = AELsingle * C5; else; AELspTrain = []; end
             
             if p.Results.Power / p.Results.PulseRate >= AELsingle
@@ -307,9 +319,9 @@ end
                     fprintf('AEL taken from limit for single pulse of %g s\n',...
                         p.Results.PulseDuration);
                 case AELspTrain
-                    [~, Units] = AELLookup(Npulse * p.Results.PulseRate);
-                    % Ti is equivalent to Npulse * PulseRate, so it's
-                    % lazier than creating another variable
+                    [~, Units] = AELLookup(p.Results.PulseDuration);
+                    % The units of AELspTrain are the same as the units of
+                    % AELsingle, which is AEL for duration of 1 pulse.
                     fprintf('AEL taken from pulse train of duration %.2e s\n',...
                         Npulse * p.Results.PulseRate);
             end
@@ -528,8 +540,16 @@ end
         % but many are defined below over a broader spectral region - this doesn't
         % matter.
         
-        TimeBase = (sum(strcmp(Class, {'2','2M','3R'})) && Wavelength >= 400 && Wavelength < 700) * 0.25 + ...
-            (Wavelength > 400 && ~sum(strcmp(Class, {'2','2M','3R'}))) * 100 + (Wavelength <= 400) * 3e4;
+        % 4.3 e) Time bases
+        rule1 = (sum(strcmp(Class, {'2','2M','3R'})) && Wavelength >= 400 && Wavelength < 700);
+        TimeBase = ...
+             0.25 *  rule1 ...
+            + 100 * (Wavelength > 400 && ~ rule1)...
+            + 3e4 * (Wavelength <= 400);
+        
+        T1 = 10^(0.8*(Wavelength-295))*1e-15;
+        T2 = (Alpha <= 1.5) * 10 + (Alpha > 100) * 100 + ...
+            ((Alpha > 1.5) && (Alpha <= 100)) * 10 * 10^((Alpha - 1.5)/98.5);
         
         Ti = ((Wavelength >= 400) && (Wavelength < 1050)) * 5e-6 + ...
             ((Wavelength >= 1050) && (Wavelength < 1400)) * 13e-6 + ...
@@ -538,7 +558,7 @@ end
             ((Wavelength >= 1800) && (Wavelength < 2600)) * 1e-3 + ...
             ((Wavelength >= 2600) && (Wavelength <= 1e6)) * 1e-7;
         
-        Npulse = (Ti + (Ti == 0))*p.Results.PulseRate ;
+        Npulse = (Ti + (Ti == 0) * min(TimeBase, T2)) * p.Results.PulseRate;
         
         if Time < 625e-6
             AlphaMax = 5;
@@ -560,14 +580,13 @@ end
         C7 = (Wavelength < 1150) * 1 + ...
             ((Wavelength >= 1150) && (Wavelength < 1200)) * 10^(0.018*(Wavelength-1150)) + ...
             (Wavelength >= 1200) * (8 + 10^(0.04 * (Wavelength - 1250)));
-        T1 = 10^(0.8*(Wavelength-295))*1e-15;
-        T2 = (Alpha <= 1.5) * 10 + (Alpha > 100) * 100 + ...
-            ((Alpha > 1.5) && (Alpha <= 100)) * 10 * 10^((Alpha - 1.5)/98.5);
-        
         
         function C5 = CalculateC5()
             %% Calculate value of C5: There are conditions defined in tables 9 and 2, and section 4.3 f)3)
-            if (Wavelength < 400) || (Wavelength >= 1400) || ...
+            if p.Results.PulseDuration <= Ti
+                isOne = (TimeBase <= 0.25 || Npulse <= 600);
+                C5 = isOne + ~isOne * min(5 * Npulse^-0.25, 0.4);
+            elseif (Wavelength < 400) || (Wavelength >= 1400) || ...
                     ((p.Results.PulseDuration <= Ti) && ((TimeBase <= 0.25) || Npulse <= 600)) ||...
                     ((p.Results.PulseDuration > Ti) && (Alpha >= 5))
                 C5 = 1;
