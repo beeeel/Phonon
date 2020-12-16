@@ -291,8 +291,8 @@ end
         else
             % Rule 4.3) Compare the AEL for a single pulse, and for the
             % average over the time base
-            AELsingle = AELLookup(p.Results.PulseDuration);
-            AELT = AELLookup(TimeBase);
+            [AELsingle, AELsingleUnits] = AELLookup(p.Results.PulseDuration);
+            [AELt, AELtUnits] = AELLookup(TimeBase);
             
             % Condition 4.3 f) 3) is not assessed against photochemical
             % limits or for class 3B
@@ -302,16 +302,29 @@ end
             if p.Results.Power / p.Results.PulseRate >= AELsingle
                 warning('Energy in one pulse exceeds AEL (single) - 4.3 f) 1)')
             end
-            if p.Results.Power >= AELT
+            if p.Results.Power >= AELt
                 warning('Laser average power exceeds AEL (T) - 4.3 f) 2)')
             end
             if p.Results.Power / p.Results.PulseRate >= AELspTrain
                 warning('Energy in one pulse exceeds AEL (sp train) - 4.3 f) 3)')
             end
             
-            AEL = min([AELT/p.Results.PulseRate,AELsingle,AELspTrain]);
+            % This should actually check units and compare as appropriate
+            if strcmp(AELtUnits,'W')
+                AELtComp = AELt/p.Results.PulseRate;
+            else
+                warning('Will is not sure that the time-average limit is compared correctly')
+            end
+            
+            if ~strcmp(AELsingleUnits,'J')
+                warning('Will is not sure that the single-pulse or pulse train limit is compared correctly')
+            end
+            
+            % The applicable AEL is the most restrictive AEL
+            AEL = min([AELtComp,AELsingle,AELspTrain]);
+            
             switch AEL
-                case AELT/p.Results.PulseRate
+                case AELt/p.Results.PulseRate
                     [AEL, Units] = AELLookup(TimeBase);
                     fprintf('AEL taken from average power over time base of %g s\n',TimeBase)
                 case AELsingle
@@ -395,8 +408,9 @@ end
             end
             
             fprintf(StrTable,'MPE for eye', BSTable, Time, Wavelength)
-            varargout = [varargout, MPELookup(Time,'eye')];
-            if MPELookup(Time,'eye') == 0
+            MPE = MPELookup(Time,'eye');
+            varargout = [varargout, MPE];
+            if MPE == 0
                 disp('MPE for eye table incomplete')
                 error('Will''s a lazy bugger and hasn''t programed this case yet!')
             end
@@ -405,15 +419,16 @@ end
             XVals = [1e-9 1e-8 1e-3 10 1e3 3e4];
             YVals = [180 302.5 315 400 700 1400 1500 1800 2600 1e6];
             BSTable = 'A.5';
-            MPESkinTable = cell(length(YVals)-1,length(XVals));
-            MPESkinTable(5,3:4) = {1.1e4 * C4 * Time^0.25};
-            MPESkinTable(5,5:6) = {2000 * C4};
+            MPESkinTable = zeros(length(YVals)-1,length(XVals));
+            MPESkinTable(5,3:4) = 1.1e4 * C4 * Time^0.25;
+            MPESkinTable(5,5:6) = 2000 * C4;
             
-            UnitsTable = repmat(string(['Check table ' BSTable ' for units']),length(YVals)-1,length(XVals)-1);
+            UnitsTable = repmat(string(['Check table ' BSTable ' for units']),length(YVals)-1,length(XVals));
 
             fprintf(StrTable,'MPE for skin',BSTable, Time, Wavelength)
-            varargout = [varargout, MPELookup(Time,'skin')];
-            if MPELookup(Time,'skin') == 0
+            MPE = MPELookup(Time,'skin');
+            varargout = [varargout, MPE];
+            if MPE == 0
                 disp('MPE for skin table incomplete')
                 error('Will''s a lazy bugger and hasn''t programed this case yet!')
             end
@@ -437,9 +452,10 @@ end
                     MPE = MPEEyeTable(find(YVals<=Wavelength,1,'last'),find(XVals<=Time,1,'last'));
                     Units = UnitsTable(find(YVals<=Wavelength,1,'last'),find(XVals<=Time,1,'last'));
                 case 'skin'
-                    MPE = MPESkinTable(find(YVals<=Wavelength,1,'last'),find(XVals>Time,1));
-                    Units = UnitsTable(find(YVals<=Wavelength,1,'last'),find(XVals>Time,1));
+                    MPE = MPESkinTable(find(YVals<=Wavelength,1,'last'),find(XVals<=Time,1,'last'));
+                    Units = UnitsTable(find(YVals<=Wavelength,1,'last'),find(XVals<=Time,1,'last'));
             end
+            fprintf('%s\n%%\t\tAEL = %.2e %s\t\t%%\n%s\n\n',repmat('%',1,49),MPE, Units,repmat('%',1,49))
             if nargout == 2
                 varargout{1} = {Units};
             end
