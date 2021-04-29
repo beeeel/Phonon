@@ -1,7 +1,10 @@
 function [filename, axis_info]=get_scan_details_multiscan(filename)
 
 allowed_scan_types = {'apt_stage','pi_stage','count','d2a_phidget'};        %scan action names
+% Note: Bytes per sample on a2d depends on the card. Most cards use l_sampl
+% which is 4.
 a2d_bytes_per_point=4;                                                      %hard coded not stored anywhere so i need o make this a fixed varible, think the d_scan sets this so shouldnt need to be changed....
+
 
 filename.con = strcat(filename.base,'.con');
 display(sprintf('Con file name: %s',filename.con));
@@ -60,31 +63,57 @@ end
 tmp = action_scan_location2-action_scan_closed;
 %opened actions adjusted for where scan actions close, this is for nested scan calcs
 open_none_scan_actions = cumsum(tmp);  
-%% find number of nested scans, then loop through and check how many axes
-k=1;
-not_end_of_file=1;
-while not_end_of_file;
-    if k==1
-        loc1(k) = find(open_none_scan_actions(1:end)==1,1);
+%% Find the number of nested scans, then check how many axes for each.
+
+% New scans are when the number of open scans is lower than at the last
+% scan action
+tmp = open_none_scan_actions(action_scan_location(2:end)) <= open_none_scan_actions(action_scan_location(1:end-1));
+new_scan = action_scan_location([true tmp]);
+% The number of axes is the largest number of open scans between opening a
+% scan, and the next new scan starting. This has not been extensively
+% tested.
+for k = 1:length(new_scan)
+    if k ~= length(new_scan)
+        num_axis(k) = max(open_none_scan_actions(new_scan(k):new_scan(k+1)-2));
     else
-        if ~isempty(find(open_none_scan_actions(loc2(k-1):end)))
-            loc1(k) = -1+loc2(k-1)+find(open_none_scan_actions(loc2(k-1):end)==1,1);
-        else
-            not_end_of_file=0;
-            break
-        end
-    end
-    loc2(k) = -1+loc1(k)+find(open_none_scan_actions(loc1(k):end)==0,1);
-    num_axis(k) = max(open_none_scan_actions(loc1(k):loc2(k)));
-    if loc2(k) == length(open_none_scan_actions)
-        not_end_of_file=0;
-    else
-        k=k+1;
+        num_axis(k) = max(open_none_scan_actions(new_scan(k):end));
     end
 end
+% Below is Richard's original code. This fails when there are multiple
+% scans within a count
+%
+% %% find number of nested scans, then loop through and check how many axes
+% k=1;
+% not_end_of_file=1;
+% while not_end_of_file;
+%     if k==1
+%         loc1(k) = find(open_none_scan_actions(1:end)==1,1);
+%     else
+%         if ~isempty(find(open_none_scan_actions(loc2(k-1):end)))
+%             loc1(k) = -1+loc2(k-1)+find(open_none_scan_actions(loc2(k-1):end)==1,1);
+%         else
+%             not_end_of_file=0;
+%             %break
+%         end
+%     end
+%     loc2(k) = -1+loc1(k)+find(open_none_scan_actions(loc1(k):end)==0,1);
+%     % Get the number of times the number of open scans goes up
+% %     tmp = open_none_scan_actions(loc1(k):loc2(k)-1) < open_none_scan_actions(loc1(k)+1:loc2(k));
+% %     if tmp == 1
+%         num_axis(k) = max(open_none_scan_actions(loc1(k):loc2(k)));
+% %     else
+% %         num_axis(k) = 
+%     if loc2(k) == length(open_none_scan_actions)
+%         not_end_of_file=0;
+%     else
+%         k=k+1;
+%     end
+% end
+
 %%
 %now we have scans and axis, we shoudl query each scan action to get the
 %scan parameters axis and scan start stop inc
+
 
 count =1;
 for k = 1:length(action_location);
@@ -137,12 +166,12 @@ for k =1:length(action_list)
              input_text = txt(action_location(k):action_location(k+1)-2);    
             end
             [tmp,match_axis]=ismember(input_text,{'channel'});
-                [tmp_loc] = find(match_axis==1,1);
-                a2d.channel (count)= str2num(input_text{tmp_loc+1});
-                            [tmp,match_axis]=ismember(input_text,{'n_samples'});
-                [tmp_loc] = find(match_axis==1,1);
-                a2d.samples (count)= str2num(input_text{tmp_loc+1});
-                a2d.bytes (count)=a2d_bytes_per_point;                                                 %hard coded not stored anywhere so i need o make this a fixed varible...
+            [tmp_loc] = find(match_axis==1,1);
+            a2d.channel (count)= str2num(input_text{tmp_loc+1});
+            [tmp,match_axis]=ismember(input_text,{'n_samples'});
+            [tmp_loc] = find(match_axis==1,1);
+            a2d.samples (count)= str2num(input_text{tmp_loc+1});
+            a2d.bytes (count)=a2d_bytes_per_point;                                                 %hard coded not stored anywhere so i need o make this a fixed varible...
         count = count+1;
         otherwise
     end
@@ -153,22 +182,62 @@ end
 % x,then y, then outermost slowest is z, this is how the data get saved and
 % loaded.
 
+ax_count = 0;
 axis_info.number_of_scans = length(num_axis);
 axis_info.number_of_axes = num_axis;
 for k = 1:axis_info.number_of_scans
-    for j= 1:axis_info.number_of_axes(k);
-        j2 = axis_info.number_of_axes(k)-(j-1);
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).type =txt{action_scan_location(j+(k-1)*axis_info.number_of_scans)};
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).start=scan_start(j+(k-1)*axis_info.number_of_scans);
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).stop= scan_stop(j+(k-1)*axis_info.number_of_scans);
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).inc= scan_inc(j+(k-1)*axis_info.number_of_scans);
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um = scan_start(j+(k-1)*axis_info.number_of_scans):scan_inc(j+(k-1)*axis_info.number_of_scans):scan_stop(j+(k-1)*axis_info.number_of_scans);
+    % Will's method - calculate number of axes already counted
+    % Check how many scans were open before the next one (finds counts
+    % containing multiple distinct scans)
+    
+    % Find word 2 before the name of this scan (i.e. 1 before "action")
+    loc = action_scan_location(ax_count+1)-2;
+    % If this is a "non-root" scan there is an action open already, so
+    % first get the details for the "root" scan
+    if open_none_scan_actions(loc) > 0
+        j0 = 2;
+        j2 = axis_info.number_of_axes(k);
+        % Find the "root" scan which is reused
+        tmp = loc - find(open_none_scan_actions(loc:-1:1)==0,1,'first') + 3;
+        tmp2 = find(tmp == action_scan_location,1,'first');
+        
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).type =txt{tmp};
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).start=scan_start(tmp2);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).stop= scan_stop(tmp2);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).inc= scan_inc(tmp2);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um = scan_start(tmp2):scan_inc(tmp2):scan_stop(tmp2);
         axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts = length(axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um);
         axis_info.(strcat('scan',num2str(k))).axis_pts(j2) =axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts ;
-        axis_info.(strcat('scan',num2str(k))).axis_order{j2} =txt{action_scan_location(j+(k-1)*axis_info.number_of_scans)};
+        axis_info.(strcat('scan',num2str(k))).axis_order{j2} =txt{action_scan_location(tmp2)};
+    else
+        j0 = 1;
+    end
+%     disp(k);
+    for j= j0:axis_info.number_of_axes(k)
+        j2 = axis_info.number_of_axes(k)-(j-1);
+        % Will's method
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).type =txt{action_scan_location(j+ax_count)};
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).start=scan_start(j + ax_count);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).stop= scan_stop(j + ax_count);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).inc= scan_inc(j + ax_count);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um = scan_start(j + ax_count):scan_inc(j + ax_count):scan_stop(j + ax_count);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts = length(axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um);
+        axis_info.(strcat('scan',num2str(k))).axis_pts(j2) =axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts ;
+        axis_info.(strcat('scan',num2str(k))).axis_order{j2} =txt{action_scan_location(j + ax_count)};
+        
+        % Richard's method - fails when multiple 2D scans are nested in a
+        % single count
+%         axis_info.(strcat'scan',num2str(k))).(strcat('axis',num2str(j2))).type =txt{action_scan_location(j+(k-1)*axis_info.number_of_scans)};
+%         axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).start=scan_start(j+(k-1)*axis_info.number_of_scans);
+%         axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).stop= scan_stop(j+(k-1)*axis_info.number_of_scans);
+%         axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).inc= scan_inc(j+(k-1)*axis_info.number_of_scans);
+%         axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um = scan_start(j+(k-1)*axis_info.number_of_scans):scan_inc(j+(k-1)*axis_info.number_of_scans):scan_stop(j+(k-1)*axis_info.number_of_scans);
+%         axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts = length(axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um);
+%         axis_info.(strcat('scan',num2str(k))).axis_pts(j2) =axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts ;
+%         axis_info.(strcat('scan',num2str(k))).axis_order{j2} =txt{action_scan_location(j+(k-1)*axis_info.number_of_scans)};
 
     end
-    
+    ax_count = ax_count + axis_info.number_of_axes(k)-j0+1;
     
 end
 
@@ -177,13 +246,30 @@ end
 tmp = dir([filename.base '_*.m']);
 dctmp = dir([filename.base '_*.d']);
 for k = 1:axis_info.number_of_scans
-    filename.(strcat('scan',num2str(k))).metaname = tmp(k).name;
+    % Gotta apply order fix if it's available (d_scan files aren't created
+    % alphabetically)
+    if isfield(filename,'order_fix')
+        filename.(strcat('scan',num2str(k))).metaname = tmp(filename.order_fix(k)).name;
+    else 
+        filename.(strcat('scan',num2str(k))).metaname = tmp(k).name;
+    end
+    
     filename.(strcat('scan',num2str(k))).meta = feval(filename.(strcat('scan',num2str(k))).metaname(1:end-2));
-    for j= 1:length(a2d.channel)/axis_info.number_of_scans;
-        filename.(strcat('scan',num2str(k))).dc{j} = dctmp(j+(k-1)*axis_info.number_of_scans).name;
-        filename.(strcat('scan',num2str(k))).dc_channel(j) = a2d.channel(j+(k-1)*axis_info.number_of_scans);
-        filename.(strcat('scan',num2str(k))).dc_samples(j) =a2d.samples(j+(k-1)*axis_info.number_of_scans);
-        filename.(strcat('scan',num2str(k))).dc_bytes(j) = a2d.bytes(j+(k-1)*axis_info.number_of_scans);
+    % Number of A2Ds per scan
+    tmp2 = length(a2d.channel)/axis_info.number_of_scans;
+    % For each A2D
+    for j= 1:tmp2
+        if (j+(k-1)*tmp2) > length(a2d.channel)
+            error('You''re trying to load more A2Ds than there are files');
+        end
+        if isfield(filename,'order_fix')
+            filename.(strcat('scan',num2str(k))).dc{j} = dctmp(j+filename.order_fix(k)*tmp2-1).name;
+        else
+            filename.(strcat('scan',num2str(k))).dc{j} = dctmp(j+(k-1)*tmp2).name;
+        end
+        filename.(strcat('scan',num2str(k))).dc_channel(j) = a2d.channel(j+(k-1)*tmp2);
+        filename.(strcat('scan',num2str(k))).dc_samples(j) =a2d.samples(j+(k-1)*tmp2);
+        filename.(strcat('scan',num2str(k))).dc_bytes(j) = a2d.bytes(j+(k-1)*tmp2);
     end
     filename.(strcat('scan',num2str(k))).ac = filename.(strcat('scan',num2str(k))).meta.dataname;
     axis_info.(strcat('scan',num2str(k))).points_per_trace = filename.(strcat('scan',num2str(k))).meta.points_per_trace;
