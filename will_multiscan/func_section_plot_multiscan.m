@@ -1,6 +1,7 @@
 %set up main plot, currently sizes hard coded in here in pixels
 %these need to be added as options somewhere
 function [fh,ui,plot_axes] = func_section_plot_multiscan(plotting_vars)
+% Inputs: {data, axis_info, exp_params, current_scan}
 
 %this needs adding to input vars
 current_scan = plotting_vars{4};
@@ -21,6 +22,8 @@ range1 = diff(axis_info.(current_scan).axis1.um([1 end]));
 range2 = diff(axis_info.(current_scan).axis2.um([1 end]));
 if range1 == 0
     range1 = range2;
+elseif range2 == 0
+    range2 = range1;
 end
 aspect_ratio = range2./range1;
 h=450;
