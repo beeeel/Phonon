@@ -1,16 +1,24 @@
 %% Analyse fluo live/dead data from C37
 % Load it
+conName = 'hela_live_imaging1';
 matName = 'hela_live_imaging1_webcampics';
-load([matName '.mat']);
+if exist([matName '.mat'],'file')
+    disp('Loading from MAT')
+    load([matName '.mat']);
+else
+    disp('Loading from PNGs')
+    fluo_data = func_tidy_thorcams(conName, true);
+end
 
 if exist([matName '_segmented.mat'],'file')
+    disp('Loading segmented')
     load([matName '_segmented.mat'])
     originList = 2:6;
     nCellsTot = 0;
     for or = 1:length(cellData); nCellsTot = nCellsTot + size(cellData{or},2); end
 end
 
-saveData = false;
+saveData = true;
 
 timeOffset = 1.25; % Time in hours between receiving cells and first fluorescent picture
 
