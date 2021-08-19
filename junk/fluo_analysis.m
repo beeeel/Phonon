@@ -2,17 +2,17 @@
 % Load it
 conName = 'hela_live_imaging1';
 matName = 'hela_live_imaging1_webcampics';
-if exist([matName '.mat'],'file')
+if exist(['./' matName '.mat'],'file')
     disp('Loading from MAT')
-    load([matName '.mat']);
+    load(['./' matName '.mat']);
 else
     disp('Loading from PNGs')
     fluo_data = func_tidy_thorcams(conName, true);
 end
 
-if exist([matName '_segmented.mat'],'file')
+if exist(['./' matName '_segmented.mat'],'file')
     disp('Loading segmented')
-    load([matName '_segmented.mat'])
+    load(['./' matName '_segmented.mat'])
     originList = 2:6;
     nCellsTot = 0;
     for or = 1:length(cellData); nCellsTot = nCellsTot + size(cellData{or},2); end
@@ -20,7 +20,7 @@ end
 
 saveData = true;
 
-timeOffset = 1.25; % Time in hours between receiving cells and first fluorescent picture
+timeOffset = 2/3; % Time in hours between receiving cells and first fluorescent picture
 
 %    TO DO:
 % Display segmented data with cell numbers
@@ -95,6 +95,7 @@ title('Done!')
 %% Look at the results
 % Just plot the data on individual axis
 fh = figure(3);
+clf
 for orIdx = 1:length(originList)
     or = originList(orIdx);
     ax = subplot(length(originList),1,orIdx);
@@ -103,6 +104,7 @@ for orIdx = 1:length(originList)
     % semilogy(24*fluo_data.(['times' num2str(or)]), cellData{orIdx}./squeeze(sum(cellMasks{orIdx} ~= 0, [1 2])))
     ax.Children(end).LineWidth = 2;
     ax.Children(end).LineStyle = '-';
+    ax.Children(end).Color = 'b';
     title(sprintf('Origin %i',or))
 end
 % Plot the change in data
@@ -114,15 +116,41 @@ for orIdx = 1:length(originList)
 %         plot(24*fluo_data.(['times' num2str(or)])(2:end), diff(cellData{orIdx}))
 %     semilogy(24*fluo_data.(['times' num2str(or)])(2:end), diff(cellData{orIdx}./cellData{orIdx}(1,:)))    
     % Normalize change to first time point
-    plot(24*fluo_data.(['times' num2str(or)])(2:end), diff(cellData{orIdx}./cellData{orIdx}(1,:)))
+    plot(24*fluo_data.(['times' num2str(or)])(2:end), diff(cellData{orIdx}./cellData{orIdx}(1,:), 1))
     ax.Children(end).LineWidth = 2;
     ax.Children(end).LineStyle = '-';
     title(sprintf('Origin %i',or))
 end
+% %% Look at the results
+% % Just plot the data on individual axis
+% fh = figure(3);
+% clf
+% for orIdx = 1:length(originList)
+%     or = originList(orIdx);
+%     ax = subplot(length(originList),1,orIdx);
+%     % Normalize to first time point
+%     yyaxis left
+%     semilogy(24*fluo_data.(['times' num2str(or)]), cellData{orIdx}./cellData{orIdx}(1,:),'--k')
+%     
+%     yyaxis right
+%     plot(24*fluo_data.(['times' num2str(or)])(2:end), diff(cellData{orIdx}./cellData{orIdx}(1,:)),'--')
+%     % semilogy(24*fluo_data.(['times' num2str(or)]), cellData{orIdx}./squeeze(sum(cellMasks{orIdx} ~= 0, [1 2])))
+%     for idx = 1:length(ax.Children)
+%         if max(idx == round([1 0.5] * length(ax.Children)))
+%             ax.Children(idx).LineWidth = 2;
+%             ax.Children(idx).LineStyle = '-';
+%         else
+% %             ax.Children(idx).LineStyle = '--';
+% %             ax.Children(idx).Color = 'k';
+%         end
+%     end
+%     title(sprintf('Origin %i',or))
+% end
+% disp('done')
 %% death time histogram
 % Determine cell death as when live signal drops by more than x percent or
 % original
-deltaThresh = 0.05;
+deltaThresh = 0.01;
 deathTimes = zeros(nCellsTot,1);
 cellN = 1;
 
@@ -136,7 +164,7 @@ for orIdx = 1:length(originList)
             dropIdx = find(diffs == greatestDrop, 1, 'first');
             deathTimes(cellN) = 24*fluo_data.(['times' num2str(or)])(dropIdx);
         else
-            deathTimes(cellN) = 24*fluo_data.(['times' num2str(or)])(end)+1.4;
+            deathTimes(cellN) = 24*fluo_data.(['times' num2str(or)])(end)+2.4;
         end
         cellN = cellN + 1;
     end
@@ -146,11 +174,11 @@ deathTimes = deathTimes + timeOffset;
 figure(5)
 % histogram(deathTimes, 'NumBins', 10)
 histogram(deathTimes, 'BinEdges',0.125:0.25:6.5)
-xlim([0 6.5])
+xlim([0 7.5])
 ylabel('Count')
 xlabel('Time (hrs)')
 title('Death time distribution')
 ax = gca;
 ax.XTickLabel{end} = 'Did not die';
-ax.XTick(end-1) = 4.6;%fluo_data.times6(end)*24+timeOffset;
+ax.XTick(end-1) = fluo_data.times6(end)*24+timeOffset;
 ax.XTickLabel{end-1} = 'Scan end';
