@@ -1,5 +1,7 @@
 %% Analyse fluo live/dead data from C37
 % Load it
+clear
+
 conName = 'hela_live_imaging1';
 matName = 'hela_live_imaging1_webcampics';
 if exist([matName '.mat'],'file')
@@ -58,6 +60,7 @@ for orIdx = 1:length(originList)
     fh = figure(2);
     clf
     imagesc(fluo_data.(['origin' num2str(or) 'b'])(:,:,1))
+    axis image
     
     % Prepare an array for the cell data 
     %  (could be more efficient - currently allocates space for doubles,
