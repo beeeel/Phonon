@@ -1,5 +1,6 @@
 %% This has been poorly maintained
-% This is a variable I don't know the source of...
+% This is a variable I don't know the source of... I think from
+% register_lasers?
 c_webcam = [0 0];
 %% Measuring cell width using accoustics
 scan_line = round([c_webcam(1) + [0, 0]; c_webcam(2) + [-8.4*30, 0]]);
