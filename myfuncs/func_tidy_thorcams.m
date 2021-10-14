@@ -75,14 +75,16 @@ fluo_data = cell2struct(values, fields, 2);
 % Loop over all images, putting them in an appropriate place
 chan = {'b','g'};
 for idx = 1:length(to_load)
-    im = imread(to_load{idx});
-    tmp = ['origin' num2str(parsed{idx,1}) chan{parsed{idx,3}}];
-    fluo_data.(tmp)(:,:,str2double(parsed{idx,2})+1) = im;
-    tmp = ['names' num2str(parsed{idx,1}) chan{parsed{idx,3}}];
-    fluo_data.(tmp){str2double(parsed{idx,2})+1} = to_load{idx};
-    if parsed{idx,3} == 1
-        tmp = ['times' num2str(parsed{idx,1})];
-        fluo_data.(tmp)(str2double(parsed{idx,2})+1) = parsed{idx,4} - t_start;
+    if str2double(parsed{idx,2}) <= n_images(parsed{idx,1})
+        im = imread(to_load{idx});
+        tmp = ['origin' num2str(parsed{idx,1}) chan{parsed{idx,3}}];
+        fluo_data.(tmp)(:,:,str2double(parsed{idx,2})+1) = im;
+        tmp = ['names' num2str(parsed{idx,1}) chan{parsed{idx,3}}];
+        fluo_data.(tmp){str2double(parsed{idx,2})+1} = to_load{idx};
+        if parsed{idx,3} == 1
+            tmp = ['times' num2str(parsed{idx,1})];
+            fluo_data.(tmp)(str2double(parsed{idx,2})+1) = parsed{idx,4} - t_start;
+        end
     end
 end
 
