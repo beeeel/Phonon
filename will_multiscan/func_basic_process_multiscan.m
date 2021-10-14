@@ -41,7 +41,9 @@ else
                 %filter HF off
                 t = data.(current_scan).t_shifted;
                 [tmp] =  func_LPfilter_multiscan(t,trace_data,exp_params.LPfilter);
-                
+                if data.(current_scan).endval > length(tmp)
+                    warning('aaaa')
+                end
                 tmp_raw_LP(j,:) = tmp(data.(current_scan).startval-exp_params.plotting_start_offset:data.(current_scan).endval);
                 tmp_raw_t = data.(current_scan).t_shifted(data.(current_scan).startval-exp_params.plotting_start_offset:data.(current_scan).endval);
                 
