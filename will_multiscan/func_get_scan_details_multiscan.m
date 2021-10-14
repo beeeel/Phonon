@@ -214,16 +214,18 @@ for k = 1:axis_info.number_of_scans
     end
 %     disp(k);
     for j= j0:axis_info.number_of_axes(k)
+        ax_no = j + ax_count - j0 + 1;
+%         fprintf('scan %i: \tj = %i\taxis number %i\t ax_count = %i\n',k, j, ax_no, ax_count)
         j2 = axis_info.number_of_axes(k)-(j-1);
         % Will's method
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).type =txt{action_scan_location(j+ax_count)};
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).start=scan_start(j + ax_count);
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).stop= scan_stop(j + ax_count);
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).inc= scan_inc(j + ax_count);
-        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um = scan_start(j + ax_count):scan_inc(j + ax_count):scan_stop(j + ax_count);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).type =txt{action_scan_location(ax_no)};
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).start=scan_start(ax_no);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).stop= scan_stop(ax_no);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).inc= scan_inc(ax_no);
+        axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um = scan_start(ax_no):scan_inc(ax_no):scan_stop(ax_no);
         axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts = length(axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).um);
         axis_info.(strcat('scan',num2str(k))).axis_pts(j2) =axis_info.(strcat('scan',num2str(k))).(strcat('axis',num2str(j2))).pts ;
-        axis_info.(strcat('scan',num2str(k))).axis_order{j2} =txt{action_scan_location(j + ax_count)};
+        axis_info.(strcat('scan',num2str(k))).axis_order{j2} =txt{action_scan_location(ax_no)};
         
         % Richard's method - fails when multiple 2D scans are nested in a
         % single count
@@ -256,20 +258,22 @@ for k = 1:axis_info.number_of_scans
     
     filename.(strcat('scan',num2str(k))).meta = feval(filename.(strcat('scan',num2str(k))).metaname(1:end-2));
     % Number of A2Ds per scan
-    tmp2 = length(a2d.channel)/axis_info.number_of_scans;
-    % For each A2D
-    for j= 1:tmp2
-        if (j+(k-1)*tmp2) > length(a2d.channel)
-            error('You''re trying to load more A2Ds than there are files');
+    if exist('a2d','var')
+        tmp2 = length(a2d.channel)/axis_info.number_of_scans;
+        % For each A2D
+        for j= 1:tmp2
+            if (j+(k-1)*tmp2) > length(a2d.channel)
+                error('You''re trying to load more A2Ds than there are files');
+            end
+            if isfield(filename,'order_fix')
+                filename.(strcat('scan',num2str(k))).dc{j} = dctmp(j+filename.order_fix(k)*tmp2-1).name;
+            else
+                filename.(strcat('scan',num2str(k))).dc{j} = dctmp(j+(k-1)*tmp2).name;
+            end
+            filename.(strcat('scan',num2str(k))).dc_channel(j) = a2d.channel(j+(k-1)*tmp2);
+            filename.(strcat('scan',num2str(k))).dc_samples(j) =a2d.samples(j+(k-1)*tmp2);
+            filename.(strcat('scan',num2str(k))).dc_bytes(j) = a2d.bytes(j+(k-1)*tmp2);
         end
-        if isfield(filename,'order_fix')
-            filename.(strcat('scan',num2str(k))).dc{j} = dctmp(j+filename.order_fix(k)*tmp2-1).name;
-        else
-            filename.(strcat('scan',num2str(k))).dc{j} = dctmp(j+(k-1)*tmp2).name;
-        end
-        filename.(strcat('scan',num2str(k))).dc_channel(j) = a2d.channel(j+(k-1)*tmp2);
-        filename.(strcat('scan',num2str(k))).dc_samples(j) =a2d.samples(j+(k-1)*tmp2);
-        filename.(strcat('scan',num2str(k))).dc_bytes(j) = a2d.bytes(j+(k-1)*tmp2);
     end
     filename.(strcat('scan',num2str(k))).ac = filename.(strcat('scan',num2str(k))).meta.dataname;
     axis_info.(strcat('scan',num2str(k))).points_per_trace = filename.(strcat('scan',num2str(k))).meta.points_per_trace;
@@ -286,12 +290,14 @@ for k = 1:axis_info.number_of_scans
         error('AC filesize not as expected: actual %g vs expected %g for %s',size_actual,size_expected,strcat('scan',num2str(k)));
     end
     %check dc files.
-    for j = 1:length(filename.(strcat('scan',num2str(k))).dc)
-        fileInfo = dir(filename.(strcat('scan',num2str(k))).dc{j});
-        size_actual = fileInfo.bytes;
-        size_expected = prod(axis_info.(strcat('scan',num2str(k))).axis_pts)*filename.(strcat('scan',num2str(k))).dc_samples(j)*filename.(strcat('scan',num2str(k))).dc_bytes(j);
-        if ~(size_actual==size_expected)
-            error('DC filesize not as expected: actual %g vs expected %g for %s',size_actual,size_expected,strcat('scan',num2str(k),': dc file :',num2str(j)));
+    if exist('a2d', 'var')
+        for j = 1:length(filename.(strcat('scan',num2str(k))).dc)
+            fileInfo = dir(filename.(strcat('scan',num2str(k))).dc{j});
+            size_actual = fileInfo.bytes;
+            size_expected = prod(axis_info.(strcat('scan',num2str(k))).axis_pts)*filename.(strcat('scan',num2str(k))).dc_samples(j)*filename.(strcat('scan',num2str(k))).dc_bytes(j);
+            if ~(size_actual==size_expected)
+                error('DC filesize not as expected: actual %g vs expected %g for %s',size_actual,size_expected,strcat('scan',num2str(k),': dc file :',num2str(j)));
+            end
         end
     end
 end

@@ -2,43 +2,48 @@
 
 clear all
 close all
-%addpath F:\Users\Rich\Dropbox\code\PLU_old\PLU_Functions
-filebase = 'test_apt_apt_count_1';
-%filebase= 'Scan3'
-%filebase = 'test_fibre_air_2'
-run_no = '';
+
+filebase = 'hela_20mW_';
+run_no = '2';
+cropCount = 5;        % Discard counts after this number
+
 confile = strcat(filebase,run_no);      % con file name no extension
 scan_type = 'd_scan';                   % or 'c_scan'
 filename.file_size_check=200;
 filename.base = confile;
 
+if true %strcmp(run_no, '1')
+    filename.order_fix = [1 6 2 3 4 5 7];
+else
+    error('what did you do that for?');
+end
+
 
 FMA=0;      %enable fitting method analysis
-STM=1;      %enable STFFT analysis
+STM=0;      %enable STFFT analysis
 ZCM=0;      %enable zero crossing analysis
 WAM=0;      %enable Wavelet analysis
 % ***************    Main parameters     **********************************
-exp_params.default_loc = 2200;           % where the co peak should be found
-%exp_params.default_loc = 250;           % where the co peak should be found
+exp_params.default_loc = 200;           % where the co peak should be found
 
-exp_params.start_offset = 30;           % off set from co peak location for data selection
+exp_params.start_offset = 60;           % off set from co peak location for data selection
 exp_params.co_peak_thresh = 0.5e-4;   % co peak level in volt for ac or mod depth for mod data
-exp_params.trace_length=1000;            % how many points to use in trace for basic processing
+exp_params.trace_length=2100;            % how many points to use in trace for basic processing
 exp_params.fit_order = 9;               % thermal removal fit order
-exp_params.f_min =2;                  % min freq of interest, used in freq search
-exp_params.f_max = 20;                  % max freq of interest, used in freq search
+exp_params.f_min =4.5;                  % min freq of interest, used in freq search
+exp_params.f_max = 6.5;                  % max freq of interest, used in freq search
 exp_params.co_peak_range = (-100:100)+exp_params.default_loc;   %search range for co_peak
 exp_params.forced_co_peak = 'no';       % or 'yes', force to use default loc for co peak
-exp_params.LPfilter = 60;               % in GHz
-exp_params.index_object = 1.57;         % refractive index at wavelength for object, used to get V from brillouin data
+exp_params.LPfilter = 20;               % in GHz
+exp_params.index_object = 1.34;         % refractive index at wavelength for object, used to get V from brillouin data
 exp_params.index_media = 1.33;          % refractive index at wavelength for surrounding media, used to get V from brillouin data
 exp_params.index_sel_freq = 7;          % freq threshold to decide which index to assign, used by brillouin processing
-exp_params.zp = 2^14;
+exp_params.zp = 2^16;
 exp_params.lambda = 780e-9;             % wavelength, used in vel conversion
-exp_params.laser_freq = 80e6;           % laser rep rate, needed to convert electrical time base to acoustic
+exp_params.laser_freq = 100e6;           % laser rep rate, needed to convert electrical time base to acoustic
 exp_params.delay_freq = 10e3;           % delay rep rate, needed to convert electrical time base to acoustic
-exp_params.pump_power =1.2;             % can be used to store useful exp info with data
-exp_params.probe_power=1.4;             % can be used to store useful exp info with data
+exp_params.pump_power =2.5;             % can be used to store useful exp info with data
+exp_params.probe_power=1.5;             % can be used to store useful exp info with data
 exp_params.ac_gain = 12.5;              % ac gain of amp. (12.5 spectra rig, 8 for menlo)
 exp_params.plotting_start_offset=100;   % no points before co peak to grab for raw plot data
 exp_params.file_save=1;                 % save data files 1=yes, will query if filesize is larger than filename.file_size_check defined below.
@@ -90,10 +95,33 @@ W_params.select = (61:1:800);      %selection to use for 3D (need to skip inital
 [data] = func_load_all_data_multiscan(filename,axis_info,exp_params);
 %% PROCESS DATA
 [data] = func_basic_process_multiscan(data,axis_info,exp_params);%
+%% CROP DATA
+% Remove bad counts if the scan was cancelled early
+warning('Cropping second dimension of data. Be sure you want to do this!')
+for sIdx = 2:length(fields(data))-1
+    fn = sprintf('scan%i',sIdx);
+    fnames = {'ac', 'mod', 'dc', 'raw_LP', 'pro', 'fft', 'freq', 'f_amp', 'f_pha'};
+    for fIdx = 1:length(fnames)
+        if isfield(data,fnames{fIdx})
+            data.(fn).(fnames{fIdx}){1} = data.(fn).(fnames{fIdx}){1}(:,1:cropCount,:);
+        end
+    end
+    fnames = {'copeak_lev','loc'};
+    for fIdx = 1:length(fnames)
+        data.(fn).(fnames{fIdx}) = data.(fn).(fnames{fIdx})(:,1:cropCount);
+    end
+    data.(fn).input_size_is(2) = cropCount;
+    
+    axis_info.(fn).axis_pts(3) = cropCount;
+    axis_info.(fn).no_traces = prod(axis_info.(fn).axis_pts);
+    axis_info.(fn).axis3.stop = cropCount;
+    axis_info.(fn).axis3.pts = cropCount;
+    axis_info.(fn).axis3.um = axis_info.(fn).axis3.um(1:cropCount);
+end
 %% PLOTTING
 % need wrapper to pass scan data to correct plotting fun depending on the dimensionality of the data for 3D and higher, will need selection criteria.
 % the below needs to become a script so it doesnt take up space.
-for k=1:length(data)
+for k=1%length(fields(data))
     currentscan =strcat('scan',num2str(k));
     switch axis_info.number_of_axes(k)
         case 1
@@ -105,32 +133,37 @@ for k=1:length(data)
             filename_str = strcat(strip_suffix(filename.con,'.con'),currentscan);
             [fh]=func_plot_basic_multiscan(data.(currentscan),axis_info.(currentscan),filename_str,exp_params,plot_params);
         case 3
+            sc = ['scan' num2str(k)];
+            
             %3D scan plotting scripts
             % the selections below need to be passed as options with defaults.
-            v_new = data.scan1.freq{1};             %3D data cube, e.g. processed F from 3D scan, or sectioned data.
-            z_um = axis_info.scan1.axis3.um;        %this is the axis info the section (depth, time, whatever) - THIS IS NOT USED ANYMORE!
-            f_min =8              ;                 %freq plot limit ranges could be from exp_params if not specified (you might want different plotting ranges than that processed
-            f_max = 12;
+            %             v_new = data.(sc).freq{1};             %3D data cube, e.g. processed F from 3D scan, or sectioned data.
+            %             z_um = axis_info.(sc).axis3.um;        %this is the axis info the section (depth, time, whatever) - THIS IS NOT USED ANYMORE!
+            f_min =5              ;                 %freq plot limit ranges could be from exp_params if not specified (you might want different plotting ranges than that processed
+            f_max = 6;
             
             %make strucutre to pass to plot and also for call back function within
             %plotting script.
-            plotting_vars{1}=v_new;
+            plotting_vars{1}=data;
             plotting_vars{2}=axis_info;
-            plotting_vars{3}=z_um;
-            plotting_vars{4}=exp_params.f_min;
-            plotting_vars{5}=exp_params.f_max;
+            plotting_vars{3}=exp_params;
+            plotting_vars{4}=sc;
+            %             plotting_vars{5}=exp_params.f_max;
             % actually call the plot
-            [fh] = func_section_plot_multiscan(plotting_vars);
+            if strcmp(axis_info.(sc).axis_order{3}, 'count')
+                fh = func_plot_count_multiscan(plotting_vars);
+            else
+                [fh] = func_section_plot_multiscan(plotting_vars);
+            end
         otherwise
             display('more than 3 dimensions, can not plot this data!')
     end
 end
 
-%%
+%% See cell freq against time
 
 
-
-
+%% See SNR being crap
 
 %
 %
