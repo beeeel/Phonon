@@ -8,7 +8,13 @@ function [fluo_data] = func_tidy_thorcams(confile, save_output, varargin)
 
 %% Get a list of the right files
 % Get all the files here which have the right name
-[~, to_load] = system(['find . -name "' confile '*.png"']);
+if nargin >= 4
+    path = varargin{2};
+else
+    path = '.';
+end
+
+[~, to_load] = system(['find ' path ' -name "' confile '*.png"']);
 to_load = strsplit(to_load, '\n');
 if isempty(to_load{1})
     error(['No png files starting with ' confile ' found here'])
@@ -35,9 +41,11 @@ t_start = min([parsed{:,4}]);
 im = imread(to_load{1});
 
 % If user supplied a stopping point, use it
-if nargin == 3 
+if nargin >= 3 
     if isnumeric(varargin{1}) && varargin{1} < max(count)
         n_images = min(count, repmat(varargin{1},1,size(count,2)));
+    else
+        n_images = count;
     end
 else
     n_images = count;
